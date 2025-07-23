@@ -19,23 +19,19 @@ import java.io.IOException;
 @RequestMapping("/api/pdf")
 @Slf4j
 @RequiredArgsConstructor
-public class pdfGenerationController {
+public class PdfGenerationController {
 
     private final PdfGenerationService pdfGenerationService;
 
     @PostMapping("/merge")
-    public ResponseEntity<byte[]> mergePdf(@RequestParam("files") MultipartFile[] files) {
-        log.info("Entering mergePdf() files = {}", files.length);
-        byte[] bytes;
-        try {
-            bytes = pdfGenerationService.mergePdfFiles(files);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+    public ResponseEntity<byte[]> mergePdf(@RequestParam("files") MultipartFile[] files) throws IOException {
+        if (files == null || files.length == 0) {
+            return ResponseEntity.badRequest().body(null);
         }
+        byte[] bytes = pdfGenerationService.mergePdfFiles(files);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);
-        headers.setContentDispositionFormData("document", "Generated.pdf");
-        log.info("Leaving mergePdf()");
+        headers.setContentDispositionFormData("attachment", "Generated.pdf");
         return new ResponseEntity<>(bytes, headers, HttpStatus.OK);
     }
 }

@@ -21,24 +21,45 @@ public class PdfGenerationService {
     public byte[] mergePdfFiles(MultipartFile[] files) throws IOException {
         log.info("Entering mergePdfFiles()");
 
+        // Enforce file count and size limits
+        int maxFiles = 10;
+        long maxFileSize = 10 * 1024 * 1024; // 10 MB per file
+        long maxTotalSize = 50 * 1024 * 1024; // 50 MB total
+
+        if (files.length == 0) {
+            throw new IllegalArgumentException("No files uploaded.");
+        }
+        if (files.length > maxFiles) {
+            throw new IllegalArgumentException("Too many files. Maximum allowed is " + maxFiles + ".");
+        }
+        long totalSize = Arrays.stream(files).mapToLong(MultipartFile::getSize).sum();
+        if (totalSize > maxTotalSize) {
+            throw new IllegalArgumentException("Total upload size exceeds " + (maxTotalSize / (1024 * 1024)) + " MB.");
+        }
+        for (MultipartFile file : files) {
+            if (file.getSize() > maxFileSize) {
+                throw new IllegalArgumentException("File " + file.getOriginalFilename() + " exceeds the per-file size limit of " + (maxFileSize / (1024 * 1024)) + " MB.");
+            }
+        }
+
         // Filter pdf files
         List<InputStream> inputStreams = Arrays.stream(files)
                 .filter(file -> "application/pdf".equalsIgnoreCase(file.getContentType()))
                 .map(file -> {
-                    try{
+                    try {
                         return file.getInputStream();
                     } catch (IOException e) {
                         throw new UncheckedIOException("Reading upload failed", e);
                     }
                 }).toList();
 
-        // 2) Fail fast if nothing to merge
+        // Fail fast if nothing to merge
         if (inputStreams.isEmpty()) {
             throw new IllegalArgumentException(
                     "No valid PDF files to merge. Ensure content types are application/pdf.");
         }
 
-        // 3) Merge
+        // Merge
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
             Document document = new Document();
             PdfCopy copy = new PdfCopy(document, baos);
